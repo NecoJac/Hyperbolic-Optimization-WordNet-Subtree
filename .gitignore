@@ -1,0 +1,35 @@
+# Python/cache artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local environments and caches
+.env
+.venv/
+.cache/
+
+# External/vendored embedding trainer and generated embedding checkpoints
+poincare-embeddings/
+
+# Runtime logs
+logs/
+**/logs/
+*.log
+
+# Model checkpoints
+checkpoints/
+**/checkpoints/
+*.pt
+*.pth
+*.ckpt
+
+# Temporary files
+*.tmp
+*.swp
+.DS_Store
+
+# Keep final result tables/figures under results_wordnet_dims tracked.
+# The logs/checkpoints subdirectories are ignored by the patterns above.

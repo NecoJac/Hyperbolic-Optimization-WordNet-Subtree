@@ -1,0 +1,32 @@
+data:
+  mode: real_wordnet
+  embeddings_path: data/embeddings/wordnet_embeddings.csv
+  edges_path: data/processed/wordnet_edges.csv
+  test_size: 0.2
+  split_protocol: subtree_balanced
+
+experiment:
+  subtrees: [MAMMAL.N.01, GROUP.N.01]
+  dims: [2, 5]
+  seeds: [0, 1, 2]
+  epochs: 30
+  batch_size: 1024
+  lr: 0.01
+  weight_decay: 0.0
+  device: cpu
+
+settings:
+  - model: euclidean_lr
+    optimizer: adam
+  - model: logmap_lr
+    optimizer: adam
+  - model: hyperbolic_mlr
+    optimizer: projected_adam
+  - model: hyperbolic_mlr
+    optimizer: rsgd
+  - model: hyperbolic_mlr
+    optimizer: radam
+
+outputs:
+  root: results
+  figures_subtrees: [MAMMAL.N.01, GROUP.N.01]

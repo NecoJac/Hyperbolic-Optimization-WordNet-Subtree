@@ -1,0 +1,42 @@
+data:
+  mode: real_wordnet
+  embeddings_by_dim:
+    "2": data/embeddings/wordnet_embeddings_d2.csv
+    "3": data/embeddings/wordnet_embeddings_d3.csv
+    "5": data/embeddings/wordnet_embeddings_d5.csv
+    "10": data/embeddings/wordnet_embeddings_d10.csv
+  edges_path: data/processed/wordnet_edges.csv
+  test_size: 0.2
+  split_protocol: subtree_balanced
+
+experiment:
+  subtrees: [GROUP.N.01]
+  dims: [2, 3, 5, 10]
+  seeds: [0, 1, 2]
+  epochs: 30
+  batch_size: 256
+  lr: 0.01
+  weight_decay: 0.0
+  device: cpu
+
+settings:
+  - model: euclidean_lr
+    optimizer: adam
+  - model: euclidean_lr
+    optimizer: sgd
+  - model: logmap_lr
+    optimizer: adam
+  - model: logmap_lr
+    optimizer: sgd
+  - model: hyperbolic_mlr
+    optimizer: projected_sgd
+  - model: hyperbolic_mlr
+    optimizer: projected_adam
+  - model: hyperbolic_mlr
+    optimizer: rsgd
+  - model: hyperbolic_mlr
+    optimizer: radam
+
+outputs:
+  root: results_wordnet_dims
+  figures_subtrees: [GROUP.N.01]
