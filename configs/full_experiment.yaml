@@ -39,4 +39,4 @@ settings:
 
 outputs:
   root: results_wordnet_dims
-  figures_subtrees: [MAMMAL.N.01, GROUP.N.01]
+  figures_subtrees: [ANIMAL.N.01, MAMMAL.N.01, GROUP.N.01, WORKER.N.01]

@@ -15,10 +15,43 @@ from .poincare_ops import project_to_ball
 
 
 MODEL_LABELS = {
-    "euclidean_lr": "Euclidean LR",
-    "logmap_lr": "Log-map LR",
-    "hyperbolic_mlr": "Hyperbolic MLR",
+    "euclidean_lr": "E-LR",
+    "logmap_lr": "LogMap-LR",
+    "hyperbolic_mlr": "H-MLR",
 }
+
+OPTIMIZER_LABELS = {
+    "adam": "Adam",
+    "sgd": "SGD",
+    "projected_sgd": "Proj. SGD",
+    "projected_adam": "Proj. Adam",
+    "rsgd": "RSGD",
+    "radam": "RAdam",
+}
+
+HYPERBOLIC_MLR_OPTIMIZERS = ("radam", "projected_adam", "rsgd", "projected_sgd")
+PAPER_LINE_FIGSIZE = (5.4, 3.35)
+PAPER_TRAJECTORY_FIGSIZE = (3.45, 3.35)
+
+
+def setting_label(model_name: str, optimizer_name: str) -> str:
+    return f"{MODEL_LABELS.get(model_name, model_name)} + {OPTIMIZER_LABELS.get(optimizer_name, optimizer_name)}"
+
+
+def apply_paper_style() -> None:
+    plt.rcParams.update({
+        "font.size": 8.5,
+        "axes.labelsize": 8.5,
+        "axes.titlesize": 9.0,
+        "legend.fontsize": 7.2,
+        "xtick.labelsize": 7.5,
+        "ytick.labelsize": 7.5,
+        "axes.linewidth": 0.8,
+        "lines.linewidth": 1.45,
+        "savefig.dpi": 300,
+        "pdf.fonttype": 42,
+        "ps.fonttype": 42,
+    })
 
 
 def _logs(root: Path) -> pd.DataFrame:
@@ -27,6 +60,7 @@ def _logs(root: Path) -> pd.DataFrame:
 
 
 def plot_curves(root: Path) -> None:
+    apply_paper_style()
     df = _logs(root)
     if df.empty:
         return
@@ -35,42 +69,62 @@ def plot_curves(root: Path) -> None:
     for (subtree, dim), sub in df.groupby(["subtree", "dim"]):
         short = subtree.split(".")[0]
         for metric, name, ylabel in [("train_loss", "loss_curve", "Train loss"), ("test_f1", "f1_curve", "Test F1")]:
-            plt.figure(figsize=(7, 4.2))
-            for key, run in sub.groupby(["model", "optimizer"]):
+            plt.figure(figsize=PAPER_LINE_FIGSIZE)
+            plot_df = sub
+            if name == "f1_curve":
+                plot_df = sub[(sub["model"] == "hyperbolic_mlr") & sub["optimizer"].isin(HYPERBOLIC_MLR_OPTIMIZERS)]
+            if plot_df.empty:
+                plt.close()
+                continue
+            if name == "f1_curve":
+                groups = [
+                    (("hyperbolic_mlr", opt), plot_df[plot_df["optimizer"] == opt])
+                    for opt in HYPERBOLIC_MLR_OPTIMIZERS
+                ]
+            else:
+                groups = list(plot_df.groupby(["model", "optimizer"]))
+            for key, run in groups:
+                if run.empty:
+                    continue
                 curve = run.groupby("epoch")[metric].mean()
-                plt.plot(curve.index, curve.values, label=f"{MODEL_LABELS.get(key[0], key[0])} + {key[1]}")
+                label = OPTIMIZER_LABELS.get(key[1], key[1]) if name == "f1_curve" else setting_label(key[0], key[1])
+                plt.plot(curve.index, curve.values, label=label)
             plt.xlabel("Epoch")
             plt.ylabel(ylabel)
-            plt.legend(fontsize=7)
+            plt.grid(True, alpha=0.22, linewidth=0.6)
+            plt.legend(frameon=False, loc="best")
             plt.tight_layout()
-            plt.savefig(fig_dir / f"{name}_{short}_dim{dim}.png", dpi=180)
+            plt.savefig(fig_dir / f"{name}_{short}_dim{dim}.png", dpi=300)
             plt.close()
-        plt.figure(figsize=(7, 4.2))
+        plt.figure(figsize=PAPER_LINE_FIGSIZE)
         for key, run in sub.groupby(["model", "optimizer"]):
             curve = run.groupby("epoch")[["avg_param_norm", "test_f1"]].mean()
-            plt.plot(curve.index, curve["avg_param_norm"], label=f"{key[1]} norm")
-            plt.plot(curve.index, curve["test_f1"], linestyle="--", label=f"{key[1]} F1")
+            label = setting_label(key[0], key[1])
+            plt.plot(curve.index, curve["avg_param_norm"], label=f"{label} norm")
+            plt.plot(curve.index, curve["test_f1"], linestyle="--", label=f"{label} F1")
         plt.xlabel("Epoch")
-        plt.legend(fontsize=7, ncol=2)
+        plt.grid(True, alpha=0.22, linewidth=0.6)
+        plt.legend(frameon=False, ncol=2)
         plt.tight_layout()
-        plt.savefig(fig_dir / f"norm_f1_{short}_dim{dim}.png", dpi=180)
+        plt.savefig(fig_dir / f"norm_f1_{short}_dim{dim}.png", dpi=300)
         plt.close()
 
 
 def plot_main_bar(root: Path) -> None:
+    apply_paper_style()
     table = root / "tables" / "main_results.csv"
     if not table.exists():
         return
     df = pd.read_csv(table)
     if df.empty:
         return
-    labels = [f"{r.subtree.split('.')[0]}\n{r.dim}d\n{r.optimizer}" for r in df.itertuples()]
-    plt.figure(figsize=(max(9, len(df) * 0.38), 4.8))
+    labels = [f"{r.subtree.split('.')[0]}\n{r.dim}d\n{setting_label(r.model, r.optimizer)}" for r in df.itertuples()]
+    plt.figure(figsize=(max(11, len(df) * 0.46), 5.4))
     plt.bar(np.arange(len(df)), df["test_f1_mean"], yerr=df["test_f1_std"].fillna(0), color="#4c78a8")
     plt.xticks(np.arange(len(df)), labels, rotation=75, ha="right", fontsize=7)
     plt.ylabel("Test F1")
     plt.tight_layout()
-    plt.savefig(root / "figures" / "main_f1_barplot.png", dpi=180)
+    plt.savefig(root / "figures" / "main_f1_barplot.png", dpi=300)
     plt.close()
 
 
@@ -105,6 +159,7 @@ def _resolve_embeddings_path(embeddings_path: str | dict, dim: int) -> str:
 
 
 def plot_boundary(root: Path, subtree: str, embeddings_path: str | dict, edges_path: str) -> None:
+    apply_paper_style()
     embeddings_path = _resolve_embeddings_path(embeddings_path, 2)
     ensure_synthetic_data(embeddings_path, edges_path)
     embeddings = load_embeddings(embeddings_path, dim=2)
@@ -118,8 +173,15 @@ def plot_boundary(root: Path, subtree: str, embeddings_path: str | dict, edges_p
     ckpts = sorted((root / "checkpoints").glob(f"{subtree}_dim2_*_seed0.pt"))
     if not ckpts:
         return
-    selected = ckpts[:5]
-    fig, axes = plt.subplots(1, len(selected), figsize=(3.1 * len(selected), 3.2), squeeze=False)
+    selected = [
+        path for path in ckpts
+        if _parse_stem(path.stem, subtree)[0] == "hyperbolic_mlr"
+        and _parse_stem(path.stem, subtree)[1] in HYPERBOLIC_MLR_OPTIMIZERS
+    ]
+    selected = sorted(selected, key=lambda path: HYPERBOLIC_MLR_OPTIMIZERS.index(_parse_stem(path.stem, subtree)[1]))
+    if not selected:
+        return
+    fig, axes = plt.subplots(1, len(selected), figsize=(2.25 * len(selected), 2.35), squeeze=False)
     for ax, ckpt in zip(axes[0], selected):
         model_name, optimizer = _parse_stem(ckpt.stem, subtree)
         try:
@@ -139,29 +201,34 @@ def plot_boundary(root: Path, subtree: str, embeddings_path: str | dict, edges_p
         ax.set_xlim(-1.02, 1.02)
         ax.set_ylim(-1.02, 1.02)
         ax.axis("off")
-        ax.set_title(ckpt.stem.replace(f"{subtree}_dim2_", "").replace("_seed0", ""), fontsize=8)
+        ax.set_title(setting_label(model_name, optimizer), fontsize=8)
     plt.tight_layout()
-    plt.savefig(root / "figures" / f"boundary_{subtree.split('.')[0]}_dim2.png", dpi=180)
+    plt.savefig(root / "figures" / f"boundary_{subtree.split('.')[0]}_dim2.png", dpi=300)
     plt.close()
 
 
 def plot_trajectory(root: Path, subtree: str) -> None:
-    paths = sorted((root / "logs").glob(f"{subtree}_dim2_hyperbolic_mlr_*_seed0_trajectory.csv"))
+    apply_paper_style()
+    paths_by_optimizer = {
+        path.stem.replace(f"{subtree}_dim2_hyperbolic_mlr_", "").replace("_seed0_trajectory", ""): path
+        for path in (root / "logs").glob(f"{subtree}_dim2_hyperbolic_mlr_*_seed0_trajectory.csv")
+    }
+    paths = [paths_by_optimizer[opt] for opt in HYPERBOLIC_MLR_OPTIMIZERS if opt in paths_by_optimizer]
     if not paths:
         return
-    plt.figure(figsize=(4.5, 4.5))
+    plt.figure(figsize=PAPER_TRAJECTORY_FIGSIZE)
     for path in paths:
         df = pd.read_csv(path)
         if {"x0", "x1"}.issubset(df.columns):
-            label = path.stem.replace(f"{subtree}_dim2_hyperbolic_mlr_", "").replace("_seed0_trajectory", "")
-            plt.plot(df["x0"], df["x1"], marker="o", markersize=2, linewidth=1, label=label)
+            optimizer = path.stem.replace(f"{subtree}_dim2_hyperbolic_mlr_", "").replace("_seed0_trajectory", "")
+            plt.plot(df["x0"], df["x1"], marker="o", markersize=1.9, linewidth=1.15, label=OPTIMIZER_LABELS.get(optimizer, optimizer))
     plt.gca().add_patch(plt.Circle((0, 0), 1, fill=False, color="black", linewidth=1))
     plt.gca().set_aspect("equal")
     plt.xlim(-1.02, 1.02)
     plt.ylim(-1.02, 1.02)
-    plt.legend(fontsize=8)
+    plt.legend(frameon=False, loc="best")
     plt.tight_layout()
-    plt.savefig(root / "figures" / f"trajectory_{subtree.split('.')[0]}_dim2.png", dpi=180)
+    plt.savefig(root / "figures" / f"trajectory_{subtree.split('.')[0]}_dim2.png", dpi=300)
     plt.close()
 
 

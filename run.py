@@ -1,3 +1,10 @@
+"""Main experiment entry point.
+
+`run.py` reads a YAML config, runs all requested subtree/dimension/seed/model
+experiments, aggregates CSV logs into report tables, and regenerates figures.
+Use `--finalize-only` to rebuild tables and plots from existing logs/checkpoints.
+"""
+
 from __future__ import annotations
 
 import argparse
